@@ -3,6 +3,7 @@ node_modules/
 .DS_Store
 credentials.json
 token.json
+token*.json
 *.log
 .nyc_output/
 coverage/

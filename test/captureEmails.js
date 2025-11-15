@@ -37,7 +37,7 @@ class EmailCapture {
       console.log(`📧 Buscando emails con query: "${query}"`);
 
       // Obtener emails que coincidan con la query
-      const emails = await this.gmailService.getUnreadEmails();
+      const emails = await this.gmailService.getEmailsByQuery(query);
 
       if (emails.length === 0) {
         console.log("📭 No se encontraron emails que coincidan con la query");
@@ -95,7 +95,7 @@ class EmailCapture {
       const query = customQuery || process.env.GMAIL_QUERY || "is:unread";
       console.log(`📧 Buscando hasta ${count} emails con query: "${query}"`);
 
-      const emails = await this.gmailService.getUnreadEmails();
+      const emails = await this.gmailService.getEmailsByQuery(query);
       const emailsToCapture = emails.slice(0, count);
 
       if (emailsToCapture.length === 0) {
@@ -169,7 +169,7 @@ class EmailCapture {
       const query = customQuery || process.env.GMAIL_QUERY || "is:unread";
       console.log(`📧 Listando hasta ${limit} emails con query: "${query}"\n`);
 
-      const emails = await this.gmailService.getUnreadEmails();
+      const emails = await this.gmailService.getEmailsByQuery(query);
       const emailsToShow = emails.slice(0, limit);
 
       if (emailsToShow.length === 0) {

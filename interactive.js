@@ -191,7 +191,7 @@ class InteractiveMenu {
     console.log("2. ✏️  Usar query personalizada\n");
 
     const choice = await this.prompt("Selecciona una opción (1-2): ");
-    let query = currentQuery;
+    let query = null; // Cambio: inicializar como null
 
     if (choice.trim() === "2") {
       console.log("\n💡 Ejemplos de queries:");
@@ -203,24 +203,29 @@ class InteractiveMenu {
       if (customQuery.trim()) {
         query = customQuery.trim();
       }
+    } else if (choice.trim() === "1") {
+      query = currentQuery; // Usar la query del .env
     }
 
     let args = ["test/captureEmails.js"];
 
     if (type === "single") {
-      args.push("capture", query);
+      args.push("capture");
+      if (query) args.push(query);
     } else if (type === "multiple") {
       const count = await this.prompt(
         "¿Cuántos emails capturar? (por defecto 3): "
       );
       const emailCount = parseInt(count.trim()) || 3;
-      args.push("capture-multiple", emailCount.toString(), query);
+      args.push("capture-multiple", emailCount.toString());
+      if (query) args.push(query);
     } else if (type === "list") {
       const limit = await this.prompt(
         "¿Cuántos emails listar? (por defecto 10): "
       );
       const emailLimit = parseInt(limit.trim()) || 10;
-      args.push("list", emailLimit.toString(), query);
+      args.push("list", emailLimit.toString());
+      if (query) args.push(query);
     }
 
     await this.runCommand("node", args);
@@ -340,7 +345,7 @@ class InteractiveMenu {
       console.log(""); // Línea en blanco antes de la ejecución
       const child = spawn(command, args, {
         stdio: "inherit",
-        shell: true,
+        shell: false, // Cambiar a false para evitar interpretación de shell
       });
 
       child.on("close", (code) => {

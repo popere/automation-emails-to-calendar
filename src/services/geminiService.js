@@ -40,7 +40,7 @@ Analiza el siguiente correo electrónico y extrae información para crear un eve
 Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
 
 {
-  "title": "TÍTULO DE LA ACTIVIDAD SIN ASTERISCO Y EN MAYUSCULAS",
+  "title": "TÍTULO DE LA ACTIVIDAD SIN ASTERISCO Y EN MAYUSCULAS (salvo si es Pádel, que en ese caso quiero que este 'Pádel' sólo), en el caso de ser un reserva de padel, quiero que el título sea 'Pádel' sólo",
   "description": "Descripción detallada del evento",
   "startDateTime": "2024-01-15T14:00:00",
   "endDateTime": "2024-01-15T15:00:00",
