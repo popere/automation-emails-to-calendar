@@ -1,0 +1,40 @@
+{
+  "name": "automation-emails-to-calendar",
+  "version": "1.0.0",
+  "description": "Automatización para crear eventos de calendario desde correos de Gmail usando Google Gemini",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "interactive": "node interactive.js",
+    "test:emails": "node test/testEmails.js",
+    "test:emails:calendar": "node test/testEmails.js calendar",
+    "test:emails:list": "node test/testEmails.js list",
+    "test:emails:specific": "node test/testEmails.js test",
+    "test:emails:real": "node test/testEmails.js calendar-test",
+    "test:gemini": "node test/diagnoseGemini.js",
+    "test:gemini:model": "node test/diagnoseGemini.js",
+    "events:stats": "node test/showEventStats.js",
+    "capture:email": "node test/captureEmails.js capture",
+    "capture:emails": "node test/captureEmails.js capture-multiple",
+    "list:emails": "node test/captureEmails.js list"
+  },
+  "keywords": [
+    "gmail",
+    "calendar",
+    "automation",
+    "gemini",
+    "google"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^128.0.0",
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

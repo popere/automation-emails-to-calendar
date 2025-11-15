@@ -1,0 +1,13 @@
+node_modules/
+.env
+.DS_Store
+credentials.json
+token.json
+*.log
+.nyc_output/
+coverage/
+
+# Archivos de prueba que pueden contener información sensible
+test/emails/captured-*.json
+test/results/
+generatedEvents/
