@@ -9,7 +9,7 @@ dotenv.config();
 class EmailCapture {
   constructor() {
     this.authService = new AuthService();
-    this.gmailService = new GmailService();
+    this.gmailService = new GmailService(this.authService);
     this.testEmailsPath = path.join(process.cwd(), "test", "emails");
   }
 

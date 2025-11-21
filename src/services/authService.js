@@ -25,9 +25,21 @@ export class AuthService {
       this.oauth2Client.setCredentials(tokens);
 
       // Verificar si el token es válido
-      await this.oauth2Client.getAccessToken();
-      console.log("✅ Token existente válido");
-      return this.oauth2Client;
+      try {
+        await this.oauth2Client.getAccessToken();
+        console.log("✅ Token existente válido");
+        return this.oauth2Client;
+      } catch (error) {
+        // Si el access_token expiró, intentar usar refresh_token
+        if (tokens.refresh_token) {
+          console.log(
+            "🔄 Access token expirado, refrescando automáticamente..."
+          );
+          return await this.refreshToken();
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.log("🔑 Necesario obtener nuevo token de autorización");
       return await this.getNewToken();
@@ -115,5 +127,113 @@ export class AuthService {
         );
       }, 5 * 60 * 1000);
     });
+  }
+
+  async refreshToken() {
+    console.log("🔄 Refrescando token de Google...");
+    try {
+      // Intentar usar el refresh_token para obtener un nuevo access_token
+      const tokenData = await fs.readFile(this.tokenPath, "utf8");
+      const tokens = JSON.parse(tokenData);
+
+      if (tokens.refresh_token) {
+        console.log(
+          "🔑 Usando refresh_token para obtener nuevo access_token..."
+        );
+
+        // Configurar las credenciales con el refresh_token
+        this.oauth2Client.setCredentials({
+          refresh_token: tokens.refresh_token,
+        });
+
+        // Obtener un nuevo access_token usando el refresh_token
+        const { credentials } = await this.oauth2Client.refreshAccessToken();
+
+        // Actualizar las credenciales
+        this.oauth2Client.setCredentials(credentials);
+
+        // Guardar el nuevo token (incluye el refresh_token original)
+        await fs.writeFile(
+          this.tokenPath,
+          JSON.stringify(credentials, null, 2)
+        );
+
+        console.log("✅ Token refrescado exitosamente usando refresh_token");
+        return this.oauth2Client;
+      } else {
+        // Si no hay refresh_token, solicitar autorización completa
+        console.log(
+          "⚠️ No se encontró refresh_token, solicitando nueva autorización..."
+        );
+        await fs.unlink(this.tokenPath).catch(() => {});
+        const newAuth = await this.getNewToken();
+        console.log("✅ Nueva autorización completada");
+        return newAuth;
+      }
+    } catch (error) {
+      console.error("❌ Error refrescando token:", error.message);
+      // Si falla el refresh, intentar obtener un nuevo token
+      console.log("🔄 Intentando obtener nueva autorización...");
+      await fs.unlink(this.tokenPath).catch(() => {});
+      const newAuth = await this.getNewToken();
+      return newAuth;
+    }
+  }
+
+  async shouldRefreshToken() {
+    try {
+      const tokenData = await fs.readFile(this.tokenPath, "utf8");
+      const tokens = JSON.parse(tokenData);
+
+      // Si no hay expiry_date, asumir que necesita refresh
+      if (!tokens.expiry_date) {
+        return true;
+      }
+
+      const now = Date.now();
+      const expiryDate = tokens.expiry_date;
+      const timeUntilExpiry = expiryDate - now;
+
+      // Refrescar si falta menos de 30 minutos para expirar
+      const thirtyMinutes = 30 * 60 * 1000;
+
+      return timeUntilExpiry < thirtyMinutes;
+    } catch (error) {
+      console.error("Error verificando expiración del token:", error.message);
+      return true; // Si hay error, intentar refrescar
+    }
+  }
+
+  async proactiveRefresh() {
+    try {
+      const needsRefresh = await this.shouldRefreshToken();
+
+      if (needsRefresh) {
+        console.log("🔄 Realizando refresh proactivo del token...");
+        await this.refreshToken();
+        return true;
+      } else {
+        const tokenData = await fs.readFile(this.tokenPath, "utf8");
+        const tokens = JSON.parse(tokenData);
+        const expiryDate = new Date(tokens.expiry_date);
+        const timeUntilExpiry = tokens.expiry_date - Date.now();
+
+        const days = Math.floor(timeUntilExpiry / (24 * 60 * 60 * 1000));
+        const hours = Math.floor(
+          (timeUntilExpiry % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)
+        );
+        const minutes = Math.floor(
+          (timeUntilExpiry % (60 * 60 * 1000)) / (60 * 1000)
+        );
+
+        console.log(
+          `✅ Token aún válido, caduca en ${days}d ${hours}h ${minutes}m (${expiryDate.toLocaleString()})`
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error en refresh proactivo:", error.message);
+      return false;
+    }
   }
 }

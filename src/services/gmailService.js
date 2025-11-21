@@ -1,39 +1,65 @@
 import { google } from "googleapis";
 
 export class GmailService {
-  constructor() {
+  constructor(authService = null) {
     this.gmail = null;
+    this.authService = authService;
   }
 
   async initialize(auth) {
     this.gmail = google.gmail({ version: "v1", auth });
   }
 
-  async getUnreadEmails() {
+  handleAuthError(error) {
+    const errorMessage = error.message?.toLowerCase() || "";
+    return (
+      errorMessage.includes("invalid_grant") ||
+      errorMessage.includes("invalid grant")
+    );
+  }
+
+  async executeWithAuthRetry(operation) {
     try {
-      const query = process.env.GMAIL_QUERY || "is:unread";
-
-      const response = await this.gmail.users.messages.list({
-        userId: "me",
-        q: query,
-      });
-
-      const messages = response.data.messages || [];
-      const emails = [];
-
-      for (const message of messages.slice(0, 10)) {
-        // Limitar a 10 correos por vez
-        const email = await this.getEmailDetails(message.id);
-        if (email) {
-          emails.push(email);
-        }
-      }
-
-      return emails;
+      return await operation();
     } catch (error) {
-      console.error("Error obteniendo correos:", error.message);
-      return [];
+      if (this.handleAuthError(error) && this.authService) {
+        console.log("🔄 Token inválido detectado. Refrescando token...");
+        const newAuth = await this.authService.refreshToken();
+        await this.initialize(newAuth);
+        // Reintentar la operación con el nuevo token
+        return await operation();
+      }
+      throw error;
     }
+  }
+
+  async getUnreadEmails() {
+    return await this.executeWithAuthRetry(async () => {
+      try {
+        const query = process.env.GMAIL_QUERY || "is:unread";
+
+        const response = await this.gmail.users.messages.list({
+          userId: "me",
+          q: query,
+        });
+
+        const messages = response.data.messages || [];
+        const emails = [];
+
+        for (const message of messages.slice(0, 10)) {
+          // Limitar a 10 correos por vez
+          const email = await this.getEmailDetails(message.id);
+          if (email) {
+            emails.push(email);
+          }
+        }
+
+        return emails;
+      } catch (error) {
+        console.error("Error obteniendo correos:", error.message);
+        throw error;
+      }
+    });
   }
 
   async getEmailDetails(messageId) {
@@ -119,29 +145,31 @@ export class GmailService {
 
   // Método para buscar emails con query personalizada
   async getEmailsByQuery(query) {
-    try {
-      console.log(`🔍 Buscando emails con query: "${query}"`);
+    return await this.executeWithAuthRetry(async () => {
+      try {
+        console.log(`🔍 Buscando emails con query: "${query}"`);
 
-      const response = await this.gmail.users.messages.list({
-        userId: "me",
-        q: query,
-        maxResults: 10,
-      });
+        const response = await this.gmail.users.messages.list({
+          userId: "me",
+          q: query,
+          maxResults: 10,
+        });
 
-      const messages = response.data.messages || [];
-      const emails = [];
+        const messages = response.data.messages || [];
+        const emails = [];
 
-      for (const message of messages) {
-        const email = await this.getEmailDetails(message.id);
-        if (email) {
-          emails.push(email);
+        for (const message of messages) {
+          const email = await this.getEmailDetails(message.id);
+          if (email) {
+            emails.push(email);
+          }
         }
-      }
 
-      return emails;
-    } catch (error) {
-      console.error("Error obteniendo emails por query:", error.message);
-      return [];
-    }
+        return emails;
+      } catch (error) {
+        console.error("Error obteniendo emails por query:", error.message);
+        throw error;
+      }
+    });
   }
 }

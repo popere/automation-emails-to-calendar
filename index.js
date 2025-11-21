@@ -10,7 +10,7 @@ dotenv.config();
 class EmailToCalendarAutomation {
   constructor() {
     this.authService = new AuthService();
-    this.gmailService = new GmailService();
+    this.gmailService = new GmailService(this.authService);
     this.calendarService = new CalendarService();
     this.geminiService = new GeminiService();
     this.cancellationService = null; // Se inicializará después
@@ -194,6 +194,28 @@ class EmailToCalendarAutomation {
     }
   }
 
+  async refreshTokenProactively() {
+    try {
+      console.log("\n" + "=".repeat(60));
+      console.log(
+        `🔄 ${new Date().toLocaleString("es-ES")} - Verificación de token`
+      );
+
+      const refreshed = await this.authService.proactiveRefresh();
+
+      if (refreshed) {
+        // Reinicializar servicios con el nuevo token
+        console.log("🔄 Reinicializando servicios con nuevo token...");
+        const auth = this.authService.oauth2Client;
+        await this.gmailService.initialize(auth);
+        await this.calendarService.initialize(auth);
+        console.log("✅ Servicios reinicializados correctamente");
+      }
+    } catch (error) {
+      console.error("❌ Error en refresh proactivo:", error.message);
+    }
+  }
+
   async start() {
     console.log("🤖 Iniciando automatización de emails a calendario...");
 
@@ -204,7 +226,7 @@ class EmailToCalendarAutomation {
       return;
     }
 
-    // Configurar intervalo de verificación
+    // Configurar intervalo de verificación de emails
     const checkInterval =
       (parseInt(process.env.CHECK_INTERVAL_MINUTES) || 5) * 60 * 1000;
     console.log(
@@ -213,10 +235,14 @@ class EmailToCalendarAutomation {
       } minuto(s)`
     );
 
+    // Configurar intervalo de refresh proactivo (cada 12 horas)
+    const refreshInterval = 12 * 60 * 60 * 1000; // 12 horas
+    console.log("🔄 Refrescando token proactivamente cada 12 horas");
+
     // Procesar emails inmediatamente
     await this.processEmails();
 
-    // Configurar verificación periódica
+    // Configurar verificación periódica de emails
     setInterval(async () => {
       console.log("\n" + "=".repeat(60));
       console.log(
@@ -224,6 +250,16 @@ class EmailToCalendarAutomation {
       );
       await this.processEmails();
     }, checkInterval);
+
+    // Configurar refresh proactivo del token
+    setInterval(async () => {
+      await this.refreshTokenProactively();
+    }, refreshInterval);
+
+    // Realizar un refresh proactivo inicial después de 1 minuto
+    setTimeout(async () => {
+      await this.refreshTokenProactively();
+    }, 60 * 1000);
 
     console.log(
       "✅ Automatización en funcionamiento. Presiona Ctrl+C para detener."

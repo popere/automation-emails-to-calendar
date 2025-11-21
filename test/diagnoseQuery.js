@@ -8,7 +8,7 @@ async function diagnoseQuery() {
   console.log("🔍 Diagnóstico de GMAIL_QUERY\n");
 
   const authService = new AuthService();
-  const gmailService = new GmailService();
+  const gmailService = new GmailService(authService);
 
   console.log("🔐 Autenticando...");
   const auth = await authService.authenticate();
