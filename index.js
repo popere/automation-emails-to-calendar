@@ -8,8 +8,10 @@ import { CancellationService } from "./src/services/cancellationService.js";
 dotenv.config();
 
 class EmailToCalendarAutomation {
-  constructor() {
-    this.authService = new AuthService();
+  constructor(tokenFile = "token.json") {
+    this.tokenFile = tokenFile;
+    this.accountName = tokenFile.replace(".json", "");
+    this.authService = new AuthService(tokenFile);
     this.gmailService = new GmailService(this.authService);
     this.calendarService = new CalendarService();
     this.geminiService = new GeminiService();
@@ -17,7 +19,7 @@ class EmailToCalendarAutomation {
   }
 
   async initialize() {
-    console.log("🔐 Inicializando servicios...");
+    console.log(`🔐 [${this.accountName}] Inicializando servicios...`);
 
     try {
       // Autenticar con Google
@@ -34,17 +36,22 @@ class EmailToCalendarAutomation {
       );
       await this.cancellationService.initialize();
 
-      console.log("✅ Todos los servicios inicializados correctamente");
+      console.log(
+        `✅ [${this.accountName}] Todos los servicios inicializados correctamente`
+      );
       return true;
     } catch (error) {
-      console.error("❌ Error inicializando servicios:", error.message);
+      console.error(
+        `❌ [${this.accountName}] Error inicializando servicios:`,
+        error.message
+      );
       return false;
     }
   }
 
   async processEmails() {
     try {
-      console.log("📧 Buscando nuevos emails...");
+      console.log(`📧 [${this.accountName}] Buscando nuevos emails...`);
 
       // Procesar emails de confirmación (crear eventos)
       await this.processConfirmationEmails();
@@ -52,7 +59,10 @@ class EmailToCalendarAutomation {
       // Procesar emails de cancelación (eliminar eventos)
       await this.processCancellationEmails();
     } catch (error) {
-      console.error("❌ Error procesando emails:", error.message);
+      console.error(
+        `❌ [${this.accountName}] Error procesando emails:`,
+        error.message
+      );
     }
   }
 
@@ -60,28 +70,36 @@ class EmailToCalendarAutomation {
     try {
       const query = process.env.GMAIL_QUERY;
       if (!query) {
-        console.log("⚠️ GMAIL_QUERY no configurada para confirmaciones");
+        console.log(
+          `⚠️ [${this.accountName}] GMAIL_QUERY no configurada para confirmaciones`
+        );
         return;
       }
 
-      console.log(`📨 Buscando emails de confirmación: "${query}"`);
+      console.log(
+        `📨 [${this.accountName}] Buscando emails de confirmación: "${query}"`
+      );
 
       // Obtener emails no leídos que coincidan con la query
       const emails = await this.gmailService.getEmailsByQuery(query);
 
       if (emails.length === 0) {
-        console.log("📭 No se encontraron emails de confirmación nuevos");
+        console.log(
+          `📭 [${this.accountName}] No se encontraron emails de confirmación nuevos`
+        );
         return;
       }
 
-      console.log(`📧 Encontrados ${emails.length} email(s) de confirmación`);
+      console.log(
+        `📧 [${this.accountName}] Encontrados ${emails.length} email(s) de confirmación`
+      );
 
       for (const email of emails) {
         await this.processConfirmationEmail(email);
       }
     } catch (error) {
       console.error(
-        "❌ Error procesando emails de confirmación:",
+        `❌ [${this.accountName}] Error procesando emails de confirmación:`,
         error.message
       );
     }
@@ -91,11 +109,15 @@ class EmailToCalendarAutomation {
     try {
       const query = process.env.GMAIL_CANCELLATION_QUERY;
       if (!query) {
-        console.log("⚠️ GMAIL_CANCELLATION_QUERY no configurada");
+        console.log(
+          `⚠️ [${this.accountName}] GMAIL_CANCELLATION_QUERY no configurada`
+        );
         return;
       }
 
-      console.log(`🗑️ Buscando emails de cancelación: "${query}"`);
+      console.log(
+        `🗑️ [${this.accountName}] Buscando emails de cancelación: "${query}"`
+      );
 
       // Obtener emails no leídos de cancelación
       const cancellationEmails = await this.gmailService.getEmailsByQuery(
@@ -103,12 +125,14 @@ class EmailToCalendarAutomation {
       );
 
       if (cancellationEmails.length === 0) {
-        console.log("📭 No se encontraron emails de cancelación nuevos");
+        console.log(
+          `📭 [${this.accountName}] No se encontraron emails de cancelación nuevos`
+        );
         return;
       }
 
       console.log(
-        `📧 Encontrados ${cancellationEmails.length} email(s) de cancelación`
+        `📧 [${this.accountName}] Encontrados ${cancellationEmails.length} email(s) de cancelación`
       );
 
       for (const email of cancellationEmails) {
@@ -116,7 +140,7 @@ class EmailToCalendarAutomation {
       }
     } catch (error) {
       console.error(
-        "❌ Error procesando emails de cancelación:",
+        `❌ [${this.accountName}] Error procesando emails de cancelación:`,
         error.message
       );
     }
@@ -124,14 +148,18 @@ class EmailToCalendarAutomation {
 
   async processConfirmationEmail(email) {
     try {
-      console.log(`\n📨 Procesando confirmación: "${email.subject}"`);
-      console.log(`👤 De: ${email.from}`);
+      console.log(
+        `\n📨 [${this.accountName}] Procesando confirmación: "${email.subject}"`
+      );
+      console.log(`👤 [${this.accountName}] De: ${email.from}`);
 
       // Extraer detalles del evento usando Gemini
       const eventDetails = await this.geminiService.extractEventDetails(email);
 
       if (eventDetails) {
-        console.log("✅ Detalles del evento extraídos exitosamente");
+        console.log(
+          `✅ [${this.accountName}] Detalles del evento extraídos exitosamente`
+        );
 
         // Crear evento en el calendario (con detección de duplicados)
         const calendarEvent = await this.calendarService.createEvent(
@@ -146,18 +174,22 @@ class EmailToCalendarAutomation {
         if (calendarEvent && !calendarEvent.skipped) {
           // Marcar email como leído
           await this.gmailService.markAsRead(email.id);
-          console.log("📬 Email marcado como leído");
+          console.log(`📬 [${this.accountName}] Email marcado como leído`);
         } else if (calendarEvent && calendarEvent.skipped) {
           // También marcar como leído si se saltó por duplicado
           await this.gmailService.markAsRead(email.id);
-          console.log("📬 Email marcado como leído (evento duplicado)");
+          console.log(
+            `📬 [${this.accountName}] Email marcado como leído (evento duplicado)`
+          );
         }
       } else {
-        console.log("❌ No se pudo extraer información del evento");
+        console.log(
+          `❌ [${this.accountName}] No se pudo extraer información del evento`
+        );
       }
     } catch (error) {
       console.error(
-        `❌ Error procesando email de confirmación ${email.id}:`,
+        `❌ [${this.accountName}] Error procesando email de confirmación ${email.id}:`,
         error.message
       );
     }
@@ -165,30 +197,36 @@ class EmailToCalendarAutomation {
 
   async processCancellationEmail(email) {
     try {
-      console.log(`\n🗑️ Procesando cancelación: "${email.subject}"`);
-      console.log(`👤 De: ${email.from}`);
+      console.log(
+        `\n🗑️ [${this.accountName}] Procesando cancelación: "${email.subject}"`
+      );
+      console.log(`👤 [${this.accountName}] De: ${email.from}`);
 
       // Procesar cancelación
       const result = await this.cancellationService.processCancellation(email);
 
       if (result && result.success) {
-        console.log("✅ Cancelación procesada exitosamente");
+        console.log(
+          `✅ [${this.accountName}] Cancelación procesada exitosamente`
+        );
         // Marcar email como leído
         await this.gmailService.markAsRead(email.id);
-        console.log("📬 Email de cancelación marcado como leído");
+        console.log(
+          `📬 [${this.accountName}] Email de cancelación marcado como leído`
+        );
       } else {
         console.log(
-          `⚠️ Cancelación no procesada: ${
+          `⚠️ [${this.accountName}] Cancelación no procesada: ${
             result?.reason || "Error desconocido"
           }`
         );
         // También marcar como leído para evitar reprocesar
         await this.gmailService.markAsRead(email.id);
-        console.log("📬 Email marcado como leído");
+        console.log(`📬 [${this.accountName}] Email marcado como leído`);
       }
     } catch (error) {
       console.error(
-        `❌ Error procesando email de cancelación ${email.id}:`,
+        `❌ [${this.accountName}] Error procesando email de cancelación ${email.id}:`,
         error.message
       );
     }
@@ -198,46 +236,61 @@ class EmailToCalendarAutomation {
     try {
       console.log("\n" + "=".repeat(60));
       console.log(
-        `🔄 ${new Date().toLocaleString("es-ES")} - Verificación de token`
+        `🔄 [${this.accountName}] ${new Date().toLocaleString(
+          "es-ES"
+        )} - Verificación de token`
       );
 
       const refreshed = await this.authService.proactiveRefresh();
 
       if (refreshed) {
         // Reinicializar servicios con el nuevo token
-        console.log("🔄 Reinicializando servicios con nuevo token...");
+        console.log(
+          `🔄 [${this.accountName}] Reinicializando servicios con nuevo token...`
+        );
         const auth = this.authService.oauth2Client;
         await this.gmailService.initialize(auth);
         await this.calendarService.initialize(auth);
-        console.log("✅ Servicios reinicializados correctamente");
+        console.log(
+          `✅ [${this.accountName}] Servicios reinicializados correctamente`
+        );
       }
     } catch (error) {
-      console.error("❌ Error en refresh proactivo:", error.message);
+      console.error(
+        `❌ [${this.accountName}] Error en refresh proactivo:`,
+        error.message
+      );
     }
   }
 
   async start() {
-    console.log("🤖 Iniciando automatización de emails a calendario...");
+    console.log(
+      `🤖 [${this.accountName}] Iniciando automatización de emails a calendario...`
+    );
 
     // Inicializar servicios
     const initialized = await this.initialize();
     if (!initialized) {
-      console.log("❌ No se pudieron inicializar los servicios. Terminando.");
-      return;
+      console.log(
+        `❌ [${this.accountName}] No se pudieron inicializar los servicios. Terminando.`
+      );
+      return false;
     }
 
     // Configurar intervalo de verificación de emails
     const checkInterval =
       (parseInt(process.env.CHECK_INTERVAL_MINUTES) || 5) * 60 * 1000;
     console.log(
-      `⏰ Verificando emails cada ${
+      `⏰ [${this.accountName}] Verificando emails cada ${
         process.env.CHECK_INTERVAL_MINUTES || 5
       } minuto(s)`
     );
 
     // Configurar intervalo de refresh proactivo (cada 12 horas)
     const refreshInterval = 12 * 60 * 60 * 1000; // 12 horas
-    console.log("🔄 Refrescando token proactivamente cada 12 horas");
+    console.log(
+      `🔄 [${this.accountName}] Refrescando token proactivamente cada 12 horas`
+    );
 
     // Procesar emails inmediatamente
     await this.processEmails();
@@ -246,7 +299,9 @@ class EmailToCalendarAutomation {
     setInterval(async () => {
       console.log("\n" + "=".repeat(60));
       console.log(
-        `⏰ ${new Date().toLocaleString("es-ES")} - Verificación programada`
+        `⏰ [${this.accountName}] ${new Date().toLocaleString(
+          "es-ES"
+        )} - Verificación programada`
       );
       await this.processEmails();
     }, checkInterval);
@@ -261,12 +316,43 @@ class EmailToCalendarAutomation {
       await this.refreshTokenProactively();
     }, 60 * 1000);
 
-    console.log(
-      "✅ Automatización en funcionamiento. Presiona Ctrl+C para detener."
-    );
+    console.log(`✅ [${this.accountName}] Automatización en funcionamiento.`);
+
+    return true;
   }
 }
 
-// Iniciar la aplicación
-const automation = new EmailToCalendarAutomation();
-automation.start().catch(console.error);
+// Función principal para iniciar todas las cuentas
+async function startMultiAccountAutomation() {
+  console.log(
+    "🚀 Iniciando automatización multi-cuenta de emails a calendario...\n"
+  );
+
+  // Descubrir todos los archivos de token
+  const tokenFiles = await AuthService.discoverTokenFiles();
+
+  // Crear una instancia de automatización por cada cuenta
+  const automations = [];
+
+  for (const tokenFile of tokenFiles) {
+    console.log(`\n${"=".repeat(60)}`);
+    const automation = new EmailToCalendarAutomation(tokenFile);
+    const started = await automation.start();
+
+    if (started) {
+      automations.push(automation);
+    }
+  }
+
+  if (automations.length === 0) {
+    console.log("\n❌ No se pudo inicializar ninguna cuenta. Terminando.");
+    return;
+  }
+
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`✅ ${automations.length} cuenta(s) en funcionamiento.`);
+  console.log("Presiona Ctrl+C para detener.\n");
+}
+
+// Iniciar la aplicación multi-cuenta
+startMultiAccountAutomation().catch(console.error);

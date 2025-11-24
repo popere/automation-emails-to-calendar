@@ -8,6 +8,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "interactive": "node interactive.js",
+    "accounts": "node manage-accounts.js",
     "test:emails": "node test/testEmails.js",
     "test:emails:calendar": "node test/testEmails.js calendar",
     "test:emails:list": "node test/testEmails.js list",

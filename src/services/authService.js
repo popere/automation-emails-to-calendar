@@ -5,9 +5,10 @@ import { createServer } from "http";
 import { parse } from "url";
 
 export class AuthService {
-  constructor() {
+  constructor(tokenPath = "token.json") {
     this.oauth2Client = null;
-    this.tokenPath = path.join(process.cwd(), "token.json");
+    this.tokenPath = path.join(process.cwd(), tokenPath);
+    this.accountName = path.basename(tokenPath, ".json");
   }
 
   async authenticate() {
@@ -27,13 +28,13 @@ export class AuthService {
       // Verificar si el token es válido
       try {
         await this.oauth2Client.getAccessToken();
-        console.log("✅ Token existente válido");
+        console.log(`✅ [${this.accountName}] Token existente válido`);
         return this.oauth2Client;
       } catch (error) {
         // Si el access_token expiró, intentar usar refresh_token
         if (tokens.refresh_token) {
           console.log(
-            "🔄 Access token expirado, refrescando automáticamente..."
+            `🔄 [${this.accountName}] Access token expirado, refrescando automáticamente...`
           );
           return await this.refreshToken();
         } else {
@@ -41,7 +42,9 @@ export class AuthService {
         }
       }
     } catch (error) {
-      console.log("🔑 Necesario obtener nuevo token de autorización");
+      console.log(
+        `🔑 [${this.accountName}] Necesario obtener nuevo token de autorización`
+      );
       return await this.getNewToken();
     }
   }
@@ -130,7 +133,7 @@ export class AuthService {
   }
 
   async refreshToken() {
-    console.log("🔄 Refrescando token de Google...");
+    console.log(`🔄 [${this.accountName}] Refrescando token de Google...`);
     try {
       // Intentar usar el refresh_token para obtener un nuevo access_token
       const tokenData = await fs.readFile(this.tokenPath, "utf8");
@@ -138,7 +141,7 @@ export class AuthService {
 
       if (tokens.refresh_token) {
         console.log(
-          "🔑 Usando refresh_token para obtener nuevo access_token..."
+          `🔑 [${this.accountName}] Usando refresh_token para obtener nuevo access_token...`
         );
 
         // Configurar las credenciales con el refresh_token
@@ -158,22 +161,29 @@ export class AuthService {
           JSON.stringify(credentials, null, 2)
         );
 
-        console.log("✅ Token refrescado exitosamente usando refresh_token");
+        console.log(
+          `✅ [${this.accountName}] Token refrescado exitosamente usando refresh_token`
+        );
         return this.oauth2Client;
       } else {
         // Si no hay refresh_token, solicitar autorización completa
         console.log(
-          "⚠️ No se encontró refresh_token, solicitando nueva autorización..."
+          `⚠️ [${this.accountName}] No se encontró refresh_token, solicitando nueva autorización...`
         );
         await fs.unlink(this.tokenPath).catch(() => {});
         const newAuth = await this.getNewToken();
-        console.log("✅ Nueva autorización completada");
+        console.log(`✅ [${this.accountName}] Nueva autorización completada`);
         return newAuth;
       }
     } catch (error) {
-      console.error("❌ Error refrescando token:", error.message);
+      console.error(
+        `❌ [${this.accountName}] Error refrescando token:`,
+        error.message
+      );
       // Si falla el refresh, intentar obtener un nuevo token
-      console.log("🔄 Intentando obtener nueva autorización...");
+      console.log(
+        `🔄 [${this.accountName}] Intentando obtener nueva autorización...`
+      );
       await fs.unlink(this.tokenPath).catch(() => {});
       const newAuth = await this.getNewToken();
       return newAuth;
@@ -209,7 +219,9 @@ export class AuthService {
       const needsRefresh = await this.shouldRefreshToken();
 
       if (needsRefresh) {
-        console.log("🔄 Realizando refresh proactivo del token...");
+        console.log(
+          `🔄 [${this.accountName}] Realizando refresh proactivo del token...`
+        );
         await this.refreshToken();
         return true;
       } else {
@@ -227,13 +239,42 @@ export class AuthService {
         );
 
         console.log(
-          `✅ Token aún válido, caduca en ${days}d ${hours}h ${minutes}m (${expiryDate.toLocaleString()})`
+          `✅ [${
+            this.accountName
+          }] Token aún válido, caduca en ${days}d ${hours}h ${minutes}m (${expiryDate.toLocaleString()})`
         );
         return false;
       }
     } catch (error) {
-      console.error("❌ Error en refresh proactivo:", error.message);
+      console.error(
+        `❌ [${this.accountName}] Error en refresh proactivo:`,
+        error.message
+      );
       return false;
+    }
+  }
+
+  static async discoverTokenFiles() {
+    try {
+      const files = await fs.readdir(process.cwd());
+      const tokenFiles = files.filter(
+        (file) => file.startsWith("token") && file.endsWith(".json")
+      );
+
+      if (tokenFiles.length === 0) {
+        console.log("⚠️ No se encontraron archivos de token (token*.json)");
+        return ["token.json"]; // Por defecto, usar token.json
+      }
+
+      console.log(
+        `📋 Encontrados ${
+          tokenFiles.length
+        } archivo(s) de token: ${tokenFiles.join(", ")}`
+      );
+      return tokenFiles;
+    } catch (error) {
+      console.error("❌ Error descubriendo archivos de token:", error.message);
+      return ["token.json"];
     }
   }
 }

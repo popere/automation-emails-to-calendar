@@ -6,6 +6,8 @@ Automatización inteligente que convierte emails de confirmación en eventos de 
 
 - 🧠 **IA Inteligente**: Usa Google Gemini para extraer información de eventos automáticamente
 - 📅 **Integración Completa**: Conexión directa con Gmail y Google Calendar
+- 👥 **Multi-Cuenta**: Soporte para múltiples cuentas de Google simultáneamente
+- 🔄 **Refresh Automático**: Mantiene los tokens activos sin intervención del usuario
 - 🔍 **Detección de Duplicados**: Evita crear eventos duplicados comparando similaridad
 - 🗑️ **Gestión de Cancelaciones**: Detecta emails de cancelación y elimina eventos correspondientes
 - 📊 **Sistema de Registro**: Registra todas las acciones en archivos JSON detallados
@@ -68,9 +70,96 @@ CALENDAR_ID=primary
 
 #### Google AI Studio
 
-1. Ve a [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Genera una nueva API Key
-3. Copia la clave al archivo `.env`
+2. Ve a [Google AI Studio](https://aistudio.google.com/app/apikey)
+3. Genera una nueva API Key
+4. Copia la clave al archivo `.env`
+
+## 👥 Configuración Multi-Cuenta
+
+La aplicación soporta **múltiples cuentas de Google simultáneamente**. Simplemente crea múltiples archivos de token:
+
+### Estructura de Archivos de Token
+
+```plaintext
+automation-emails-to-calendar/
+├── token.json          # Cuenta principal
+├── token-ali.json      # Cuenta de Ali
+├── token-work.json     # Cuenta de trabajo
+└── token-personal.json # Cuenta personal
+```
+
+### Cómo Funciona
+
+1. **Detección Automática**: Al iniciar, la app detecta todos los archivos `token*.json`
+2. **Inicialización Individual**: Cada cuenta se inicializa de forma independiente
+3. **Procesamiento Paralelo**: Todas las cuentas procesan emails simultáneamente
+4. **Logs Identificados**: Cada log incluye el nombre de la cuenta `[token-ali]`
+
+### Primer Uso (Autorización)
+
+```bash
+# Inicia la aplicación
+npm start
+
+# Para cada archivo token*.json que NO exista:
+# 1. Se abrirá el navegador automáticamente
+# 2. Autoriza cada cuenta cuando se solicite
+# 3. Los tokens se guardarán automáticamente
+```
+
+### Refresh Automático de Tokens
+
+- ⏰ **Verificación cada 12 horas**: Refresca tokens si están cerca de expirar
+- 🔄 **Uso del refresh_token**: No requiere reautorización del usuario
+- 🛡️ **Mantiene tokens activos**: Evita que expiren mientras la app está corriendo
+- 📝 **Logs detallados**: Muestra el tiempo restante de cada token
+
+### Ejemplo de Salida Multi-Cuenta
+
+```plaintext
+🚀 Iniciando automatización multi-cuenta de emails a calendario...
+
+📋 Encontrados 3 archivo(s) de token: token.json, token-ali.json, token-work.json
+
+============================================================
+🤖 [token] Iniciando automatización de emails a calendario...
+🔐 [token] Inicializando servicios...
+✅ [token] Token existente válido
+✅ [token] Todos los servicios inicializados correctamente
+⏰ [token] Verificando emails cada 5 minuto(s)
+🔄 [token] Refrescando token proactivamente cada 12 horas
+📧 [token] Buscando nuevos emails...
+✅ [token] Automatización en funcionamiento.
+
+============================================================
+🤖 [token-ali] Iniciando automatización de emails a calendario...
+🔐 [token-ali] Inicializando servicios...
+✅ [token-ali] Token existente válido
+✅ [token-ali] Todos los servicios inicializados correctamente
+⏰ [token-ali] Verificando emails cada 5 minuto(s)
+🔄 [token-ali] Refrescando token proactivamente cada 12 horas
+📧 [token-ali] Buscando nuevos emails...
+✅ [token-ali] Automatización en funcionamiento.
+
+============================================================
+✅ 2 cuenta(s) en funcionamiento.
+Presiona Ctrl+C para detener.
+```
+
+### Gestor de Cuentas
+
+Gestiona tus cuentas fácilmente con el menú interactivo:
+
+```bash
+npm run accounts
+```
+
+**Funciones disponibles:**
+
+- 📋 Listar cuentas configuradas y estado de tokens
+- ➕ Agregar nueva cuenta
+- 🗑️ Eliminar cuenta
+- 🔄 Refrescar token de cuenta manualmente
 
 ## 🚀 Ejecución
 
